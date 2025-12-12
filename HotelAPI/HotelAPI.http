@@ -1,4 +1,4 @@
-@HotelAPI_HostAddress = http://localhost:5280
+@HotelAPI_HostAddress = http://localhost:7297
 
 GET {{HotelAPI_HostAddress}}/Hotels/
 Accept: application/json
