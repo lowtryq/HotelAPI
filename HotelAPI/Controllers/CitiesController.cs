@@ -8,7 +8,6 @@ using System.Linq;
 using System.Threading.Tasks;
 namespace HotelBookingApi.Controllers
 {
-    //test10 for progmeth
     [Route("api/[controller]")]
     [ApiController]
     public class CitiesController : ControllerBase
