@@ -1,149 +1,70 @@
-﻿using HotelAPI.Data;
-using HotelAPI.Dtos;
-using HotelAPI.Models;
+﻿using HotelAPI.Dtos;
+using HotelAPI.Services;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
-[ApiController]
-[Route("api/[controller]")]
-public class BookingsController : ControllerBase
+namespace HotelAPI.Controllers
 {
-    private readonly BookingContext _context;
-
-    public BookingsController(BookingContext context)
+    [ApiController]
+    [Route("api/[controller]")]
+    public class BookingsController : ControllerBase
     {
-        _context = context;
-    }
+        private readonly IBookingService _bookingService;
 
-    // GET: api/Bookings
-    [HttpGet]
-    public async Task<ActionResult<IEnumerable<BookingDto>>> GetBookings()
-    {
-        var bookings = await _context.Bookings.Include(b => b.Hotel).ToListAsync();
-
-        var bookingDtos = bookings.Select(b => new BookingDto
+        public BookingsController(IBookingService bookingService)
         {
-            Id = b.Id,
-            HotelId = b.HotelId,
-            HotelName = b.Hotel.Name,
-            GuestName = b.GuestName,
-            GuestEmail = b.GuestEmail,
-            CheckInDate = b.CheckInDate,
-            CheckOutDate = b.CheckOutDate
-        });
-
-        return Ok(bookingDtos);
-    }
-
-    // GET: api/Bookings/5
-    [HttpGet("{id}")]
-    public async Task<ActionResult<BookingDto>> GetBooking(int id)
-    {
-        var booking = await _context.Bookings.Include(b => b.Hotel).FirstOrDefaultAsync(b => b.Id == id);
-
-        if (booking == null)
-            return NotFound();
-
-        var bookingDto = new BookingDto
-        {
-            Id = booking.Id,
-            HotelId = booking.HotelId,
-            HotelName = booking.Hotel.Name,
-            GuestName = booking.GuestName,
-            GuestEmail = booking.GuestEmail,
-            CheckInDate = booking.CheckInDate,
-            CheckOutDate = booking.CheckOutDate
-        };
-
-        return Ok(bookingDto);
-    }
-
-    // POST: api/Bookings
-    [HttpPost]
-    public async Task<ActionResult<BookingDto>> PostBooking(BookingCreateUpdateDto dto)
-    {
-        var hotel = await _context.Hotels.FindAsync(dto.HotelId);
-        if (hotel == null)
-            return BadRequest($"Hotel with Id {dto.HotelId} does not exist.");
-
-        if (dto.CheckOutDate <= dto.CheckInDate)
-            return BadRequest("Check-out date must be later than check-in date.");
-
-        var booking = new Booking
-        {
-            HotelId = dto.HotelId,
-            GuestName = dto.GuestName,
-            GuestEmail = dto.GuestEmail,
-            CheckInDate = dto.CheckInDate,
-            CheckOutDate = dto.CheckOutDate
-        };
-
-        _context.Bookings.Add(booking);
-        await _context.SaveChangesAsync();
-
-        var bookingDto = new BookingDto
-        {
-            Id = booking.Id,
-            HotelId = booking.HotelId,
-            HotelName = hotel.Name,
-            GuestName = booking.GuestName,
-            GuestEmail = booking.GuestEmail,
-            CheckInDate = booking.CheckInDate,
-            CheckOutDate = booking.CheckOutDate
-        };
-
-        return CreatedAtAction(nameof(GetBooking), new { id = booking.Id }, bookingDto);
-    }
-
-    // PUT: api/Bookings/5
-    [HttpPut("{id}")]
-    public async Task<IActionResult> PutBooking(int id, BookingCreateUpdateDto dto)
-    {
-        var booking = await _context.Bookings.FindAsync(id);
-        if (booking == null)
-            return NotFound();
-
-        var hotel = await _context.Hotels.FindAsync(dto.HotelId);
-        if (hotel == null)
-            return BadRequest($"Hotel with Id {dto.HotelId} does not exist.");
-
-        if (dto.CheckOutDate <= dto.CheckInDate)
-            return BadRequest("Check-out date must be later than check-in date.");
-
-        booking.HotelId = dto.HotelId;
-        booking.GuestName = dto.GuestName;
-        booking.GuestEmail = dto.GuestEmail;
-        booking.CheckInDate = dto.CheckInDate;
-        booking.CheckOutDate = dto.CheckOutDate;
-
-        _context.Entry(booking).State = EntityState.Modified;
-
-        try
-        {
-            await _context.SaveChangesAsync();
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            if (!_context.Bookings.Any(b => b.Id == id))
-                return NotFound();
-            else
-                throw;
+            _bookingService = bookingService;
         }
 
-        return NoContent();
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<BookingDto>>> GetBookings()
+        {
+            var bookings = await _bookingService.GetAllBookingsAsync();
+            return Ok(bookings);
+        }
+
+        [HttpGet("{id}")]
+        public async Task<ActionResult<BookingDto>> GetBooking(int id)
+        {
+            var booking = await _bookingService.GetBookingByIdAsync(id);
+            if (booking == null) return NotFound();
+            return Ok(booking);
+        }
+
+        [HttpPost]
+        public async Task<ActionResult<BookingDto>> PostBooking(BookingCreateUpdateDto dto)
+        {
+            try
+            {
+                var booking = await _bookingService.CreateBookingAsync(dto);
+                return CreatedAtAction(nameof(GetBooking), new { id = booking.Id }, booking);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [HttpPut("{id}")]
+        public async Task<IActionResult> PutBooking(int id, BookingCreateUpdateDto dto)
+        {
+            try
+            {
+                var result = await _bookingService.UpdateBookingAsync(id, dto);
+                if (!result) return NotFound();
+                return NoContent();
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteBooking(int id)
+        {
+            var result = await _bookingService.DeleteBookingAsync(id);
+            if (!result) return NotFound();
+            return NoContent();
+        }
     }
-
-    // DELETE: api/Bookings/5
-    [HttpDelete("{id}")]
-    public async Task<IActionResult> DeleteBooking(int id)
-    {
-        var booking = await _context.Bookings.FindAsync(id);
-        if (booking == null)
-            return NotFound();
-
-        _context.Bookings.Remove(booking);
-        await _context.SaveChangesAsync();
-
-        return NoContent();
-    }
-}
+}       

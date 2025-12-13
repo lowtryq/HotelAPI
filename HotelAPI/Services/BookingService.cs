@@ -54,12 +54,10 @@ namespace HotelAPI.Services
 
         public async Task<BookingDto> CreateBookingAsync(BookingCreateUpdateDto dto)
         {
-            // Проверяем, что отель существует
             var hotel = await _context.Hotels.FindAsync(dto.HotelId);
             if (hotel == null)
                 throw new ArgumentException($"Hotel with Id {dto.HotelId} does not exist.");
 
-            // Проверка дат
             if (dto.CheckOutDate <= dto.CheckInDate)
                 throw new ArgumentException("Check-out date must be later than check-in date.");
 
