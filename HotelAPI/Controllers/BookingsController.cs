@@ -62,16 +62,12 @@ public class BookingsController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<BookingDto>> PostBooking(BookingCreateUpdateDto dto)
     {
-        // Проверяем, что отель существует
         var hotel = await _context.Hotels.FindAsync(dto.HotelId);
         if (hotel == null)
             return BadRequest($"Hotel with Id {dto.HotelId} does not exist.");
 
-        // Проверка дат (CheckOut > CheckIn)
         if (dto.CheckOutDate <= dto.CheckInDate)
             return BadRequest("Check-out date must be later than check-in date.");
-
-        // TODO: здесь можно добавить проверку доступности комнат на даты
 
         var booking = new Booking
         {
